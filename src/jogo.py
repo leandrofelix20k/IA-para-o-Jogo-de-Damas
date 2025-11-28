@@ -1,5 +1,10 @@
 import pygame
-from constantes import PRETO, VERMELHO, BRANCO, AZUL, TAMANHO_QUADRADO, DOURADO, MARROM_PECA
+import sys
+from constantes import (
+    PRETO, BRANCO, CINZA, CINZA_CLARO, AZUL, 
+    TAMANHO_QUADRADO, DOURADO, MARROM_PECA,
+    LARGURA, ALTURA
+)
 from tabuleiro import Tabuleiro
 
 class Jogo:
@@ -34,7 +39,6 @@ class Jogo:
         peca = self.tabuleiro.obter_peca(linha, coluna)
         if peca != 0 and peca.cor == self.turno:
             self.selecionado = peca
-            # Lógica de Captura Obrigatória / Lei da Maioria
             todos_movimentos = self.tabuleiro.obter_movimentos_validos(peca)
             self.movimentos_validos = todos_movimentos
             return True
@@ -45,9 +49,6 @@ class Jogo:
         peca = self.tabuleiro.obter_peca(linha, coluna)
 
         if self.selecionado and peca == 0 and (linha, coluna) in self.movimentos_validos:
-            # Verifica se está obedecendo a Lei da Maioria (deve implementar globalmente)
-            # Para simplificar neste passo, permitimos o movimento validado pelo tabuleiro
-            
             self.tabuleiro.mover_peca(self.selecionado, linha, coluna)
             capturados = self.movimentos_validos[(linha, coluna)]
             if capturados:
@@ -71,6 +72,77 @@ class Jogo:
         else:
             self.turno = DOURADO
 
+def desenharTextoCentralizado(tela, texto, tamanho, cor, y):
+    fonte = pygame.font.SysFont("arial", tamanho, bold=True)
+    objetoTexto = fonte.render(texto, True, cor)
+    rectTexto = objetoTexto.get_rect(center=(LARGURA // 2, y))
+    tela.blit(objetoTexto, rectTexto)
+
+def desenharBotao(tela, rect, texto, mousePos):
+    cor = CINZA
+    if rect.collidepoint(mousePos):
+        cor = CINZA_CLARO
+    
+    pygame.draw.rect(tela, cor, rect)
+    fonte = pygame.font.SysFont("arial", 30)
+    textoSurf = fonte.render(texto, True, PRETO)
+    textoRect = textoSurf.get_rect(center=rect.center)
+    tela.blit(textoSurf, textoRect)
+
+def telaFinal(tela, vencedor):
+    """
+    Exibe a tela de vitória/derrota.
+    Retorna: 'MENU', 'RESTART' ou 'SAIR'
+    """
+    rodando = True
+    
+    # Define quem ganhou
+    if vencedor == DOURADO:
+        mensagem = "VITÓRIA!"
+        corMensagem = DOURADO
+    else:
+        mensagem = "DERROTA!"
+        corMensagem = MARROM_PECA # Ou Vermelho, se preferir
+
+    # Dimensões dos botões
+    larguraBotao = 300
+    alturaBotao = 60
+    centroX = LARGURA // 2
+
+    rectReiniciar = pygame.Rect(0, 0, larguraBotao, alturaBotao)
+    rectReiniciar.center = (centroX, 400)
+
+    rectMenu = pygame.Rect(0, 0, larguraBotao, alturaBotao)
+    rectMenu.center = (centroX, 500)
+
+    # Cria uma superfície semi-transparente para escurecer o fundo
+    sombra = pygame.Surface((LARGURA, ALTURA))
+    sombra.set_alpha(200) # 0 é transparente, 255 é opaco
+    sombra.fill(PRETO)
+    tela.blit(sombra, (0,0))
+
+    while rodando:
+        mousePos = pygame.mouse.get_pos()
+
+        # Desenha os textos
+        desenharTextoCentralizado(tela, mensagem, 80, corMensagem, 200)
+        
+        # Desenha os botões
+        desenharBotao(tela, rectReiniciar, "JOGAR NOVAMENTE", mousePos)
+        desenharBotao(tela, rectMenu, "VOLTAR AO MENU", mousePos)
+
+        pygame.display.update()
+
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                return "SAIR"
+            
+            if evento.type == pygame.MOUSEBUTTONDOWN:
+                if rectReiniciar.collidepoint(mousePos):
+                    return "RESTART"
+                if rectMenu.collidepoint(mousePos):
+                    return "MENU"
+
 def iniciarJogo(tela, dificuldade):
     jogo = Jogo(tela)
     rodando = True
@@ -79,22 +151,37 @@ def iniciarJogo(tela, dificuldade):
     while rodando:
         relogio.tick(60)
 
-        if jogo.vencedor() != None:
-            print(f"Vencedor: {jogo.vencedor()}")
-            rodando = False
-
+        # Verifica se alguém ganhou
+        vencedor = jogo.vencedor()
+        if vencedor is not None:
+            # Chama a tela final e espera a decisão do usuário
+            acao = telaFinal(tela, vencedor)
+            
+            if acao == "SAIR":
+                rodando = False
+                pygame.quit()
+                sys.exit()
+            elif acao == "MENU":
+                rodando = False # Sai do loop do jogo e volta para o menuJogo.py
+            elif acao == "RESTART":
+                jogo.reset() # Reseta o tabuleiro e continua no loop
+                
+        # Loop normal do jogo
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 rodando = False
+                pygame.quit()
+                sys.exit()
             
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
                 linha, coluna = obter_linha_coluna_do_mouse(pos)
                 jogo.selecionar(linha, coluna)
             
+            # Atalho para testes (pode remover depois): Aperte 'W' para simular vitória
             if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_ESCAPE:
-                    rodando = False
+                if evento.key == pygame.K_w: 
+                   jogo.tabuleiro.pecasMarronsRestantes = 0 # Força vitória Dourada
 
         jogo.update()
 
