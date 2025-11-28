@@ -29,3 +29,22 @@ A inteligência do agente é baseada no algoritmo **Minimax com Poda Alfa-Beta**
 * **Ferramentas:**
     * **Pygame:** Utilizado para a criação da interface do tabuleiro.
     * **NumPy:** Utilizado para possíveis cálculos ou manipulações de dados no backend da IA.
+
+## 🚀 Como Executar o Projeto
+
+### Clonar e Configurar
+
+```bash
+# Clone o repositório
+
+# Entre na pasta do projeto
+cd IA-para-o-Jogo-de-Damas
+
+# Crie um ambiente virtual
+python3 -m venv venv
+
+# Ative o ambiente virtual
+source venv/bin/activate
+
+# Execute o jogo
+python src/main.py
