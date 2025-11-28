@@ -1,7 +1,7 @@
 import pygame
 import sys
 from constantes import (
-    PRETO, BRANCO, CINZA, CINZA_CLARO, AZUL, 
+    PRETO, CINZA, CINZA_CLARO, AZUL, 
     TAMANHO_QUADRADO, DOURADO, MARROM_PECA,
     LARGURA, ALTURA
 )
@@ -14,14 +14,14 @@ class Jogo:
     
     def update(self):
         self.tabuleiro.desenhar(self.tela)
-        self.desenhar_movimentos_validos(self.movimentos_validos)
+        self.desenharMovimentosValidos(self.movimentosValidos)
         pygame.display.update()
 
     def _init(self):
         self.selecionado = None
         self.tabuleiro = Tabuleiro()
         self.turno = DOURADO
-        self.movimentos_validos = {}
+        self.movimentosValidos = {}
 
     def vencedor(self):
         return self.tabuleiro.vencedor()
@@ -36,37 +36,36 @@ class Jogo:
                 self.selecionado = None
                 self.selecionar(linha, coluna)
         
-        peca = self.tabuleiro.obter_peca(linha, coluna)
+        peca = self.tabuleiro.obterPeca(linha, coluna)
         if peca != 0 and peca.cor == self.turno:
             self.selecionado = peca
-            todos_movimentos = self.tabuleiro.obter_movimentos_validos(peca)
-            self.movimentos_validos = todos_movimentos
+            self.movimentosValidos = self.tabuleiro.obterMovimentosValidos(peca)
             return True
             
         return False
 
     def _mover(self, linha, coluna):
-        peca = self.tabuleiro.obter_peca(linha, coluna)
+        peca = self.tabuleiro.obterPeca(linha, coluna)
 
-        if self.selecionado and peca == 0 and (linha, coluna) in self.movimentos_validos:
-            self.tabuleiro.mover_peca(self.selecionado, linha, coluna)
-            capturados = self.movimentos_validos[(linha, coluna)]
+        if self.selecionado and peca == 0 and (linha, coluna) in self.movimentosValidos:
+            self.tabuleiro.moverPeca(self.selecionado, linha, coluna)
+            capturados = self.movimentosValidos[(linha, coluna)]
             if capturados:
                 self.tabuleiro.remover(capturados)
             
-            self.mudar_turno()
+            self.mudarTurno()
         else:
             return False
 
         return True
 
-    def desenhar_movimentos_validos(self, movimentos):
+    def desenharMovimentosValidos(self, movimentos):
         for movimento in movimentos:
             linha, coluna = movimento
             pygame.draw.circle(self.tela, AZUL, (coluna * TAMANHO_QUADRADO + TAMANHO_QUADRADO//2, linha * TAMANHO_QUADRADO + TAMANHO_QUADRADO//2), 15)
 
-    def mudar_turno(self):
-        self.movimentos_validos = {}
+    def mudarTurno(self):
+        self.movimentosValidos = {}
         if self.turno == DOURADO:
             self.turno = MARROM_PECA
         else:
@@ -90,21 +89,14 @@ def desenharBotao(tela, rect, texto, mousePos):
     tela.blit(textoSurf, textoRect)
 
 def telaFinal(tela, vencedor):
-    """
-    Exibe a tela de vitória/derrota.
-    Retorna: 'MENU', 'RESTART' ou 'SAIR'
-    """
     rodando = True
-    
-    # Define quem ganhou
     if vencedor == DOURADO:
         mensagem = "VITÓRIA!"
         corMensagem = DOURADO
     else:
         mensagem = "DERROTA!"
-        corMensagem = MARROM_PECA # Ou Vermelho, se preferir
+        corMensagem = MARROM_PECA
 
-    # Dimensões dos botões
     larguraBotao = 300
     alturaBotao = 60
     centroX = LARGURA // 2
@@ -115,19 +107,14 @@ def telaFinal(tela, vencedor):
     rectMenu = pygame.Rect(0, 0, larguraBotao, alturaBotao)
     rectMenu.center = (centroX, 500)
 
-    # Cria uma superfície semi-transparente para escurecer o fundo
     sombra = pygame.Surface((LARGURA, ALTURA))
-    sombra.set_alpha(200) # 0 é transparente, 255 é opaco
+    sombra.set_alpha(200)
     sombra.fill(PRETO)
     tela.blit(sombra, (0,0))
 
     while rodando:
         mousePos = pygame.mouse.get_pos()
-
-        # Desenha os textos
         desenharTextoCentralizado(tela, mensagem, 80, corMensagem, 200)
-        
-        # Desenha os botões
         desenharBotao(tela, rectReiniciar, "JOGAR NOVAMENTE", mousePos)
         desenharBotao(tela, rectMenu, "VOLTAR AO MENU", mousePos)
 
@@ -136,12 +123,17 @@ def telaFinal(tela, vencedor):
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 return "SAIR"
-            
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 if rectReiniciar.collidepoint(mousePos):
                     return "RESTART"
                 if rectMenu.collidepoint(mousePos):
                     return "MENU"
+
+def obterLinhaColunaMouse(pos):
+    x, y = pos
+    linha = y // TAMANHO_QUADRADO
+    coluna = x // TAMANHO_QUADRADO
+    return linha, coluna
 
 def iniciarJogo(tela, dificuldade):
     jogo = Jogo(tela)
@@ -151,22 +143,18 @@ def iniciarJogo(tela, dificuldade):
     while rodando:
         relogio.tick(60)
 
-        # Verifica se alguém ganhou
         vencedor = jogo.vencedor()
         if vencedor is not None:
-            # Chama a tela final e espera a decisão do usuário
             acao = telaFinal(tela, vencedor)
-            
             if acao == "SAIR":
                 rodando = False
                 pygame.quit()
                 sys.exit()
             elif acao == "MENU":
-                rodando = False # Sai do loop do jogo e volta para o menuJogo.py
+                rodando = False
             elif acao == "RESTART":
-                jogo.reset() # Reseta o tabuleiro e continua no loop
+                jogo.reset()
                 
-        # Loop normal do jogo
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 rodando = False
@@ -175,18 +163,11 @@ def iniciarJogo(tela, dificuldade):
             
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
-                linha, coluna = obter_linha_coluna_do_mouse(pos)
+                linha, coluna = obterLinhaColunaMouse(pos)
                 jogo.selecionar(linha, coluna)
             
-            # Atalho para testes (pode remover depois): Aperte 'W' para simular vitória
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_w: 
-                   jogo.tabuleiro.pecasMarronsRestantes = 0 # Força vitória Dourada
+                   jogo.tabuleiro.pecasMarronsRestantes = 0
 
         jogo.update()
-
-def obter_linha_coluna_do_mouse(pos):
-    x, y = pos
-    linha = y // TAMANHO_QUADRADO
-    coluna = x // TAMANHO_QUADRADO
-    return linha, coluna

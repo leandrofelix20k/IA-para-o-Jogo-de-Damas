@@ -3,7 +3,7 @@ import sys
 import jogo
 from constantes import (
     LARGURA, ALTURA, PRETO, BRANCO, CINZA, CINZA_CLARO,
-    FACIL, MEDIO, DIFICIL
+    FACIL, MEDIO, DIFICIL, DOURADO
 )
 
 pygame.font.init()
@@ -20,6 +20,72 @@ def desenharBotao(tela, retangulo, texto, fonte, posicaoMouse):
     
     pygame.draw.rect(tela, corBotao, retangulo)
     desenharTexto(texto, fonte, PRETO, tela, retangulo.centerx, retangulo.centery)
+
+def exibirRegras(tela):
+    rodando = True
+    fonteTitulo = pygame.font.SysFont("arial", 35, bold=True)
+    fonteTexto = pygame.font.SysFont("arial", 20) 
+    fonteDestaque = pygame.font.SysFont("arial", 20, bold=True)
+    fonteBotao = pygame.font.SysFont("arial", 25)
+
+    regras = [
+        ("1. TABULEIRO & INÍCIO:", True),
+        ("   - Tabuleiro 64 casas. Grande diagonal escura à esquerda.", False),
+        ("   - As Brancas sempre fazem o lance inicial.", False),
+        ("", False),
+        ("2. MOVIMENTAÇÃO:", True),
+        ("   - Pedra: Move 1 casa na diagonal, sempre para frente.", False),
+        ("   - Dama: Ao atingir a casa de coroação (última linha), vira Dama.", False),
+        ("   - A Dama move-se livremente na diagonal (frente e trás).", False),
+        ("", False),
+        ("3. CAPTURA (OBRIGATÓRIA):", True),
+        ("   - Não existe sopro. Captura p/ frente e p/ trás (Pedra e Dama).", False),
+        ("   - A Dama pode parar em qualquer casa após a peça capturada.", False),
+        ("", False),
+        ("4. LEI DA MAIORIA (REGRA CRUCIAL):", True),
+        ("   - Se houver mais de uma opção de captura, é OBRIGATÓRIO", False),
+        ("     escolher o lance que captura o MAIOR número de peças.", False),
+        ("   - Pedra e Dama têm o mesmo valor na contagem (valem 1).", False),
+        ("", False),
+        ("5. REGRAS TÉCNICAS:", True),
+        ("   - Captura em Cadeia: Peças capturadas só saem no fim do lance.", False),
+        ("   - Se passar pela casa de coroação capturando, NÃO vira Dama.", False),
+        ("   - Empate: 20 lances sucessivos de Dama sem captura.", False)
+    ]
+
+    rectVoltar = pygame.Rect(0, 0, 200, 50)
+    rectVoltar.center = (LARGURA // 2, 720)
+
+    while rodando:
+        tela.fill(PRETO)
+        posicaoMouse = pygame.mouse.get_pos()
+
+        desenharTexto("REGRAS OFICIAIS (CBJD)", fonteTitulo, DOURADO, tela, LARGURA // 2, 60)
+
+        yInicial = 120
+        espacamento = 26
+        
+        for texto, destaque in regras:
+            if destaque:
+                textoObj = fonteDestaque.render(texto, True, DOURADO)
+            else:
+                textoObj = fonteTexto.render(texto, True, BRANCO)
+            
+            tela.blit(textoObj, (50, yInicial))
+            yInicial += espacamento
+
+        desenharBotao(tela, rectVoltar, "VOLTAR", fonteBotao, posicaoMouse)
+
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if evento.type == pygame.MOUSEBUTTONDOWN:
+                if rectVoltar.collidepoint(posicaoMouse):
+                    return
+
+        pygame.display.update()
 
 def selecionarDificuldade(tela):
     rodando = True
@@ -66,7 +132,7 @@ def selecionarDificuldade(tela):
                 if retanguloDificil.collidepoint(posicaoMouse):
                     return DIFICIL
                 if retanguloVoltar.collidepoint(posicaoMouse):
-                    return None
+                    return None 
 
         pygame.display.update()
 
@@ -111,7 +177,7 @@ def executar(tela):
                         jogo.iniciarJogo(tela, dificuldade)
                         
                 if retanguloRegras.collidepoint(posicaoMouse):
-                    pass
+                    exibirRegras(tela)
                     
                 if retanguloSair.collidepoint(posicaoMouse):
                     rodando = False
