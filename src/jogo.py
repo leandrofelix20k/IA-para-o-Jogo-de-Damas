@@ -1,9 +1,9 @@
 import pygame
 import sys
 from constantes import (
-    PRETO, CINZA, CINZA_CLARO, AZUL, 
+    PRETO, CINZA, CINZA_CLARO, AZUL, VERDE, VERMELHO,
     TAMANHO_QUADRADO, DOURADO, MARROM_PECA,
-    LARGURA, ALTURA
+    LARGURA, ALTURA, LINHAS, COLUNAS
 )
 from tabuleiro import Tabuleiro
 
@@ -11,10 +11,12 @@ class Jogo:
     def __init__(self, tela):
         self._init()
         self.tela = tela
+        self.rectDesistir = pygame.Rect(3, 10, 80, 40)
     
     def update(self):
         self.tabuleiro.desenhar(self.tela)
-        self.desenharMovimentosValidos(self.movimentosValidos)
+        self.desenharDicasVisuais() 
+        self.desenharBotaoDesistir()
         pygame.display.update()
 
     def _init(self):
@@ -22,12 +24,42 @@ class Jogo:
         self.tabuleiro = Tabuleiro()
         self.turno = DOURADO
         self.movimentosValidos = {}
+        self.movimentosValidosGlobais = {} 
+        self.capturaObrigatoria = False
+        self._calcularMovimentosObrigatorios()
 
     def vencedor(self):
         return self.tabuleiro.vencedor()
 
     def reset(self):
         self._init()
+
+    def _calcularMovimentosObrigatorios(self):
+        maxCapturas = 0
+        movimentosPorPeca = {}
+
+        for linha in range(LINHAS):
+            for coluna in range(COLUNAS):
+                peca = self.tabuleiro.obterPeca(linha, coluna)
+                if peca != 0 and peca.cor == self.turno:
+                    movimentos = self.tabuleiro.obterMovimentosValidos(peca)
+                    if movimentos:
+                        movimentosPorPeca[peca] = movimentos
+                        for mov, capturados in movimentos.items():
+                            maxCapturas = max(maxCapturas, len(capturados))
+
+        self.capturaObrigatoria = (maxCapturas > 0)
+
+        self.movimentosValidosGlobais = {} 
+
+        for peca, movimentos in movimentosPorPeca.items():
+            movimentosFiltrados = {}
+            for mov, capturados in movimentos.items():
+                if len(capturados) == maxCapturas:
+                    movimentosFiltrados[mov] = capturados
+            
+            if movimentosFiltrados:
+                self.movimentosValidosGlobais[peca] = movimentosFiltrados
 
     def selecionar(self, linha, coluna):
         if self.selecionado:
@@ -37,10 +69,12 @@ class Jogo:
                 self.selecionar(linha, coluna)
         
         peca = self.tabuleiro.obterPeca(linha, coluna)
+        
         if peca != 0 and peca.cor == self.turno:
-            self.selecionado = peca
-            self.movimentosValidos = self.tabuleiro.obterMovimentosValidos(peca)
-            return True
+            if peca in self.movimentosValidosGlobais:
+                self.selecionado = peca
+                self.movimentosValidos = self.movimentosValidosGlobais[peca]
+                return True
             
         return False
 
@@ -59,17 +93,45 @@ class Jogo:
 
         return True
 
-    def desenharMovimentosValidos(self, movimentos):
+    def desenharDicasVisuais(self):
+        if self.selecionado:
+            self._desenharBolinhasDestino(self.movimentosValidos)
+            pygame.draw.circle(self.tela, VERDE, (self.selecionado.x, self.selecionado.y), 50, 4)
+        
+        elif self.capturaObrigatoria:
+            for peca, movimentos in self.movimentosValidosGlobais.items():
+                pygame.draw.circle(self.tela, VERDE, (peca.x, peca.y), 40, 3)
+                self._desenharBolinhasDestino(movimentos)
+
+    def _desenharBolinhasDestino(self, movimentos):
         for movimento in movimentos:
             linha, coluna = movimento
-            pygame.draw.circle(self.tela, AZUL, (coluna * TAMANHO_QUADRADO + TAMANHO_QUADRADO//2, linha * TAMANHO_QUADRADO + TAMANHO_QUADRADO//2), 15)
+            cx = coluna * TAMANHO_QUADRADO + TAMANHO_QUADRADO // 2
+            cy = linha * TAMANHO_QUADRADO + TAMANHO_QUADRADO // 2
+            pygame.draw.circle(self.tela, AZUL, (cx, cy), 15)
+
+    def desenharBotaoDesistir(self):
+        mousePos = pygame.mouse.get_pos()
+        cor = VERMELHO
+        if self.rectDesistir.collidepoint(mousePos):
+            cor = (200, 0, 0)
+
+        pygame.draw.rect(self.tela, cor, self.rectDesistir, border_radius=5)
+        
+        fonte = pygame.font.SysFont("arial", 20, bold=True)
+        texto = fonte.render("DESISTIR", True, (255, 255, 255))
+        rectTexto = texto.get_rect(center=self.rectDesistir.center)
+        self.tela.blit(texto, rectTexto)
 
     def mudarTurno(self):
         self.movimentosValidos = {}
+        self.selecionado = None
         if self.turno == DOURADO:
             self.turno = MARROM_PECA
         else:
             self.turno = DOURADO
+        
+        self._calcularMovimentosObrigatorios()
 
 def desenharTextoCentralizado(tela, texto, tamanho, cor, y):
     fonte = pygame.font.SysFont("arial", tamanho, bold=True)
@@ -144,6 +206,7 @@ def iniciarJogo(tela, dificuldade):
         relogio.tick(60)
 
         vencedor = jogo.vencedor()
+        
         if vencedor is not None:
             acao = telaFinal(tela, vencedor)
             if acao == "SAIR":
@@ -163,8 +226,21 @@ def iniciarJogo(tela, dificuldade):
             
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
-                linha, coluna = obterLinhaColunaMouse(pos)
-                jogo.selecionar(linha, coluna)
+                
+                if jogo.rectDesistir.collidepoint(pos):
+                    acao = telaFinal(tela, MARROM_PECA)
+                    if acao == "SAIR":
+                        rodando = False
+                        pygame.quit()
+                        sys.exit()
+                    elif acao == "MENU":
+                        rodando = False
+                    elif acao == "RESTART":
+                        jogo.reset()
+                
+                else:
+                    linha, coluna = obterLinhaColunaMouse(pos)
+                    jogo.selecionar(linha, coluna)
             
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_w: 
