@@ -3,135 +3,20 @@ import sys
 from constantes import (
     PRETO, CINZA, CINZA_CLARO, AZUL, VERDE, VERMELHO,
     TAMANHO_QUADRADO, DOURADO, MARROM_PECA,
-    LARGURA, ALTURA, LINHAS, COLUNAS
+    LARGURA, ALTURA, LINHAS, COLUNAS,
+    FACIL, MEDIO, DIFICIL 
 )
 from tabuleiro import Tabuleiro
+from ia import minimax 
 
-class Jogo:
-    def __init__(self, tela):
-        self._init()
-        self.tela = tela
-        self.rectDesistir = pygame.Rect(3, 10, 80, 40)
-    
-    def update(self):
-        self.tabuleiro.desenhar(self.tela)
-        self.desenharDicasVisuais() 
-        self.desenharBotaoDesistir()
-        pygame.display.update()
 
-    def _init(self):
-        self.selecionado = None
-        self.tabuleiro = Tabuleiro()
-        self.turno = DOURADO
-        self.movimentosValidos = {}
-        self.movimentosValidosGlobais = {} 
-        self.capturaObrigatoria = False
-        self._calcularMovimentosObrigatorios()
 
-    def vencedor(self):
-        return self.tabuleiro.vencedor()
-
-    def reset(self):
-        self._init()
-
-    def _calcularMovimentosObrigatorios(self):
-        maxCapturas = 0
-        movimentosPorPeca = {}
-
-        for linha in range(LINHAS):
-            for coluna in range(COLUNAS):
-                peca = self.tabuleiro.obterPeca(linha, coluna)
-                if peca != 0 and peca.cor == self.turno:
-                    movimentos = self.tabuleiro.obterMovimentosValidos(peca)
-                    if movimentos:
-                        movimentosPorPeca[peca] = movimentos
-                        for mov, capturados in movimentos.items():
-                            maxCapturas = max(maxCapturas, len(capturados))
-
-        self.capturaObrigatoria = (maxCapturas > 0)
-
-        self.movimentosValidosGlobais = {} 
-
-        for peca, movimentos in movimentosPorPeca.items():
-            movimentosFiltrados = {}
-            for mov, capturados in movimentos.items():
-                if len(capturados) == maxCapturas:
-                    movimentosFiltrados[mov] = capturados
-            
-            if movimentosFiltrados:
-                self.movimentosValidosGlobais[peca] = movimentosFiltrados
-
-    def selecionar(self, linha, coluna):
-        if self.selecionado:
-            resultado = self._mover(linha, coluna)
-            if not resultado:
-                self.selecionado = None
-                self.selecionar(linha, coluna)
-        
-        peca = self.tabuleiro.obterPeca(linha, coluna)
-        
-        if peca != 0 and peca.cor == self.turno:
-            if peca in self.movimentosValidosGlobais:
-                self.selecionado = peca
-                self.movimentosValidos = self.movimentosValidosGlobais[peca]
-                return True
-            
-        return False
-
-    def _mover(self, linha, coluna):
-        peca = self.tabuleiro.obterPeca(linha, coluna)
-
-        if self.selecionado and peca == 0 and (linha, coluna) in self.movimentosValidos:
-            self.tabuleiro.moverPeca(self.selecionado, linha, coluna)
-            capturados = self.movimentosValidos[(linha, coluna)]
-            if capturados:
-                self.tabuleiro.remover(capturados)
-            
-            self.mudarTurno()
-        else:
-            return False
-
-        return True
-
-    def desenharDicasVisuais(self):
-        if self.selecionado:
-            self._desenharBolinhasDestino(self.movimentosValidos)
-            pygame.draw.circle(self.tela, VERDE, (self.selecionado.x, self.selecionado.y), 50, 4)
-        
-        elif self.capturaObrigatoria:
-            for peca, movimentos in self.movimentosValidosGlobais.items():
-                pygame.draw.circle(self.tela, VERDE, (peca.x, peca.y), 40, 3)
-                self._desenharBolinhasDestino(movimentos)
-
-    def _desenharBolinhasDestino(self, movimentos):
-        for movimento in movimentos:
-            linha, coluna = movimento
-            cx = coluna * TAMANHO_QUADRADO + TAMANHO_QUADRADO // 2
-            cy = linha * TAMANHO_QUADRADO + TAMANHO_QUADRADO // 2
-            pygame.draw.circle(self.tela, AZUL, (cx, cy), 15)
-
-    def desenharBotaoDesistir(self):
-        mousePos = pygame.mouse.get_pos()
-        cor = VERMELHO
-        if self.rectDesistir.collidepoint(mousePos):
-            cor = (200, 0, 0)
-
-        pygame.draw.rect(self.tela, cor, self.rectDesistir, border_radius=5)
-        
-        fonte = pygame.font.SysFont("arial", 20, bold=True)
-        texto = fonte.render("DESISTIR", True, (255, 255, 255))
-        rectTexto = texto.get_rect(center=self.rectDesistir.center)
-        self.tela.blit(texto, rectTexto)
-
-    def mudarTurno(self):
-        self.movimentosValidos = {}
-        self.selecionado = None
-        if self.turno == DOURADO:
-            self.turno = MARROM_PECA
-        else:
-            self.turno = DOURADO
-        
-        self._calcularMovimentosObrigatorios()
+def obterLinhaColunaMouse(pos):
+    x, y = pos
+    # garantem que sempre retornará números inteiros
+    linha = y // TAMANHO_QUADRADO
+    coluna = x // TAMANHO_QUADRADO
+    return linha, coluna
 
 def desenharTextoCentralizado(tela, texto, tamanho, cor, y):
     fonte = pygame.font.SysFont("arial", tamanho, bold=True)
@@ -191,14 +76,140 @@ def telaFinal(tela, vencedor):
                 if rectMenu.collidepoint(mousePos):
                     return "MENU"
 
-def obterLinhaColunaMouse(pos):
-    x, y = pos
-    linha = y // TAMANHO_QUADRADO
-    coluna = x // TAMANHO_QUADRADO
-    return linha, coluna
+
+class Jogo:
+    def __init__(self, tela, dificuldade): 
+        self._init()
+        self.tela = tela
+        self.rectDesistir = pygame.Rect(3, 10, 80, 40)
+        self.dificuldade = dificuldade
+        self.profundidade = self._definir_profundidade(dificuldade)
+
+    def _definir_profundidade(self, dificuldade):
+        if dificuldade == FACIL:
+            return 1
+        elif dificuldade == MEDIO:
+            return 3
+        elif dificuldade == DIFICIL:
+            return 5
+        return 1
+
+    def mudarTurno(self):
+        self.movimentosValidos = {}
+        self.selecionado = None
+        
+        # Inverte o turno no Tabuleiro
+        if self.tabuleiro.turno == DOURADO:
+            self.tabuleiro.turno = MARROM_PECA
+        else:
+            self.tabuleiro.turno = DOURADO
+        
+        # Recalcula movimentos (agora método de Tabuleiro)
+        self.tabuleiro._calcularMovimentosObrigatorios()
+
+    def lance_ia(self):
+        avaliacao, tabuleiro_melhor_lance = minimax(
+            self.tabuleiro, 
+            self.profundidade, 
+            float('-inf'), 
+            float('inf'), 
+            True,
+            MARROM_PECA
+        )
+
+        if tabuleiro_melhor_lance:
+            # O tabuleiro retornado já está no estado pós-lance da IA (turno trocado)
+            self.tabuleiro = tabuleiro_melhor_lance
+            
+            # Reseta estado visual do Jogo
+            self.movimentosValidos = {}
+            self.selecionado = None
+            
+    def update(self):
+        self.tabuleiro.desenhar(self.tela)
+        self.desenharDicasVisuais() 
+        self.desenharBotaoDesistir()
+        pygame.display.update()
+
+    def _init(self):
+        self.selecionado = None
+        # O Tabuleiro agora gerencia o turno e os movimentos válidos globais
+        self.tabuleiro = Tabuleiro() 
+        self.movimentosValidos = {}
+        
+    def vencedor(self):
+        return self.tabuleiro.vencedor()
+
+    def reset(self):
+        self._init()
+        self.profundidade = self._definir_profundidade(self.dificuldade)
+
+    def selecionar(self, linha, coluna):
+        if self.selecionado:
+            resultado = self._mover(linha, coluna)
+            if not resultado:
+                self.selecionado = None
+                self.selecionar(linha, coluna)
+                return True 
+        
+        peca = self.tabuleiro.obterPeca(linha, coluna)
+        
+        if peca != 0 and peca.cor == self.tabuleiro.turno:
+            if peca in self.tabuleiro.movimentosValidosGlobais:
+                self.selecionado = peca
+                self.movimentosValidos = self.tabuleiro.movimentosValidosGlobais[peca]
+                return True
+            
+        return False
+
+    def _mover(self, linha, coluna):
+        peca = self.tabuleiro.obterPeca(linha, coluna)
+
+        if self.selecionado and peca == 0 and (linha, coluna) in self.movimentosValidos:
+            self.tabuleiro.moverPeca(self.selecionado, linha, coluna)
+            capturados = self.movimentosValidos[(linha, coluna)]
+            if capturados:
+                self.tabuleiro.remover(capturados)
+            
+            self.mudarTurno()
+        else:
+            return False
+
+        return True
+
+    def desenharDicasVisuais(self):
+        if self.selecionado:
+            self._desenharBolinhasDestino(self.movimentosValidos)
+            pygame.draw.circle(self.tela, VERDE, (self.selecionado.x, self.selecionado.y), 50, 4)
+        
+        elif self.tabuleiro.capturaObrigatoria:
+            for peca, movimentos in self.tabuleiro.movimentosValidosGlobais.items():
+                pygame.draw.circle(self.tela, VERDE, (peca.x, peca.y), 40, 3)
+                self._desenharBolinhasDestino(movimentos)
+
+    def _desenharBolinhasDestino(self, movimentos):
+        for movimento in movimentos:
+            linha, coluna = movimento
+            cx = coluna * TAMANHO_QUADRADO + TAMANHO_QUADRADO // 2
+            cy = linha * TAMANHO_QUADRADO + TAMANHO_QUADRADO // 2
+            pygame.draw.circle(self.tela, AZUL, (cx, cy), 15)
+
+    def desenharBotaoDesistir(self):
+        mousePos = pygame.mouse.get_pos()
+        cor = VERMELHO
+        if self.rectDesistir.collidepoint(mousePos):
+            cor = (200, 0, 0)
+
+        pygame.draw.rect(self.tela, cor, self.rectDesistir, border_radius=5)
+        
+        fonte = pygame.font.SysFont("arial", 20, bold=True)
+        texto = fonte.render("DESISTIR", True, (255, 255, 255))
+        rectTexto = texto.get_rect(center=self.rectDesistir.center)
+        self.tela.blit(texto, rectTexto)
+
 
 def iniciarJogo(tela, dificuldade):
-    jogo = Jogo(tela)
+    jogo = Jogo(tela, dificuldade) 
     rodando = True
     relogio = pygame.time.Clock()
 
@@ -218,6 +229,10 @@ def iniciarJogo(tela, dificuldade):
             elif acao == "RESTART":
                 jogo.reset()
                 
+        # Lógica do Turno da IA (MARROM_PECA)
+        if jogo.tabuleiro.turno == MARROM_PECA and vencedor is None:
+            jogo.lance_ia() 
+
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 rodando = False
@@ -227,6 +242,7 @@ def iniciarJogo(tela, dificuldade):
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
                 
+                # 1. Lógica de Desistir
                 if jogo.rectDesistir.collidepoint(pos):
                     acao = telaFinal(tela, MARROM_PECA)
                     if acao == "SAIR":
@@ -238,7 +254,9 @@ def iniciarJogo(tela, dificuldade):
                     elif acao == "RESTART":
                         jogo.reset()
                 
-                else:
+                # 2. Lógica de Clique (Apenas para pessoa - DOURADO)
+                
+                elif jogo.tabuleiro.turno == DOURADO: 
                     linha, coluna = obterLinhaColunaMouse(pos)
                     jogo.selecionar(linha, coluna)
             
