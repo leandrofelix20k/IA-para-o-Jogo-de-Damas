@@ -1,9 +1,9 @@
 # IA para o Jogo de Damas
 
-**Disciplina:** Introdução à Inteligência Artificial
-**Semestre:** 2025.2
-**Professor:** Andre Luis Fonseca Faustino
-**Turma:** T04
+**Disciplina:** Introdução à Inteligência Artificial<br>
+**Semestre:** 2025.2<br>
+**Professor:** Andre Luis Fonseca Faustino<br>
+**Turma:** T04<br>
 
 ## Integrantes do Grupo
 
