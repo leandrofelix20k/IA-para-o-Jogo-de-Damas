@@ -186,10 +186,14 @@ class Jogo:
         return True
 
     def desenharDicasVisuais(self):
+        # ❗ Evitar mostrar dicas no turno da IA
+        if self.tabuleiro.turno == MARROM_PECA:
+            return
+
         if self.selecionado:
             self._desenharBolinhasDestino(self.movimentosValidos)
             pygame.draw.circle(self.tela, VERDE, (self.selecionado.x, self.selecionado.y), 50, 4)
-        
+    
         elif self.tabuleiro.capturaObrigatoria:
             for peca, movimentos in self.tabuleiro.movimentosValidosGlobais.items():
                 pygame.draw.circle(self.tela, VERDE, (peca.x, peca.y), 40, 3)
