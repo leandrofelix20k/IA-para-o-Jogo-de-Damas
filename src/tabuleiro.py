@@ -1,4 +1,5 @@
 import pygame
+from copy import deepcopy 
 from constantes import (
     PRETO, LINHAS, COLUNAS, TAMANHO_QUADRADO, 
     BEGE, MARROM_TABULEIRO, MARROM_PECA, DOURADO
@@ -10,7 +11,14 @@ class Tabuleiro:
         self.tabuleiro = []
         self.pecasDouradasRestantes = 12
         self.pecasMarronsRestantes = 12
+        
+        # ATRIBUTOS DE ESTADO DO JOGO MOVIDOS PARA CÁ
+        self.turno = DOURADO 
+        self.movimentosValidosGlobais = {} 
+        self.capturaObrigatoria = False
+        
         self.criarTabuleiro()
+        self._calcularMovimentosObrigatorios() # Chamada inicial
 
     def desenharQuadrados(self, tela):
         tela.fill(BEGE)
@@ -74,16 +82,42 @@ class Tabuleiro:
         elif self.pecasMarronsRestantes <= 0:
             return DOURADO
         return None
+        
+    # --- MÉTODO DE CÁLCULO MOVIDO PARA CÁ ---
+    def _calcularMovimentosObrigatorios(self):
+        maxCapturas = 0
+        movimentosPorPeca = {}
+
+        for linha in range(LINHAS):
+            for coluna in range(COLUNAS):
+                peca = self.obterPeca(linha, coluna)
+                if peca != 0 and peca.cor == self.turno:
+                    movimentos = self.obterMovimentosValidos(peca)
+                    if movimentos:
+                        movimentosPorPeca[peca] = movimentos
+                        for mov, capturados in movimentos.items():
+                            maxCapturas = max(maxCapturas, len(capturados))
+
+        self.capturaObrigatoria = (maxCapturas > 0)
+
+        self.movimentosValidosGlobais = {} 
+
+        for peca, movimentos in movimentosPorPeca.items():
+            movimentosFiltrados = {}
+            for mov, capturados in movimentos.items():
+                if len(capturados) == maxCapturas:
+                    movimentosFiltrados[mov] = capturados
+            
+            if movimentosFiltrados:
+                self.movimentosValidosGlobais[peca] = movimentosFiltrados
 
     def obterMovimentosValidos(self, peca):
         movimentos = {}
         
-        # 1. Primeiro verificamos se há capturas (pois são obrigatórias)
         capturas = self._buscarTodasCapturas(peca)
         if capturas:
             return capturas
         
-        # 2. Se não houver capturas, verificamos movimentos simples
         movimentos = self._buscarMovimentosSimples(peca)
         return movimentos
 
@@ -180,3 +214,36 @@ class Tabuleiro:
 
     def _posicaoValida(self, linha, coluna):
         return 0 <= linha < LINHAS and 0 <= coluna < COLUNAS
+    
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        novo_tabuleiro = cls.__new__(cls)
+        memo[id(self)] = novo_tabuleiro
+
+        # Copiar atributos simples
+        novo_tabuleiro.pecasDouradasRestantes = self.pecasDouradasRestantes
+        novo_tabuleiro.pecasMarronsRestantes = self.pecasMarronsRestantes
+        
+        # --- COPIAR ATRIBUTOS DE ESTADO DO JOGO ---
+        novo_tabuleiro.turno = self.turno 
+        novo_tabuleiro.capturaObrigatoria = self.capturaObrigatoria
+        
+        # deepcopy de movimentosValidosGlobais
+        novo_tabuleiro.movimentosValidosGlobais = {}
+        for peca_origem, movimentos in self.movimentosValidosGlobais.items():
+             # Encontra a nova referência da peca no tabuleiro (será ajustada após a cópia do tabuleiro)
+             novo_tabuleiro.movimentosValidosGlobais[deepcopy(peca_origem, memo)] = deepcopy(movimentos, memo)
+
+
+        # Copiar o tabuleiro e as Peças DENTRO dele
+        novo_tabuleiro.tabuleiro = []
+        for linha in self.tabuleiro:
+            nova_linha = []
+            for peca in linha:
+                if peca != 0:
+                    nova_linha.append(deepcopy(peca, memo))
+                else:
+                    nova_linha.append(0)
+            novo_tabuleiro.tabuleiro.append(nova_linha)
+
+        return novo_tabuleiro

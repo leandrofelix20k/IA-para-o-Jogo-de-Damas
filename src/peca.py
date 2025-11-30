@@ -1,6 +1,8 @@
 import pygame
 from constantes import TAMANHO_QUADRADO, CINZA, DOURADO
-
+import pygame
+from constantes import TAMANHO_QUADRADO, CINZA, DOURADO
+from copy import deepcopy # <--- NOVO IMPORT
 class Peca:
     def __init__(self, linha, coluna, cor):
         self.linha = linha
@@ -33,3 +35,19 @@ class Peca:
     
     def __repr__(self):
         return str(self.cor)
+  
+    # método para cópia profunda
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        nova_peca = cls.__new__(cls)
+        memo[id(self)] = nova_peca
+
+        # Copiar todos os atributos necessários
+        nova_peca.linha = self.linha
+        nova_peca.coluna = self.coluna
+        nova_peca.cor = self.cor
+        nova_peca.dama = self.dama
+        nova_peca.x = self.x
+        nova_peca.y = self.y
+
+        return nova_peca
