@@ -1,5 +1,7 @@
 import pygame
 import sys
+import time
+
 from constantes import (
     PRETO, CINZA, CINZA_CLARO, AZUL, VERDE, VERMELHO,
     TAMANHO_QUADRADO, DOURADO, MARROM_PECA,
@@ -84,6 +86,12 @@ class Jogo:
         self.rectDesistir = pygame.Rect(3, 10, 80, 40)
         self.dificuldade = dificuldade
         self.profundidade = self._definir_profundidade(dificuldade)
+        
+        # Delay da IA
+        self.aguardando_ia = False
+        self.tempo_inicio_ia = 0
+        self.delay_ia = 0.7   # tempo em segundos
+
 
     def _definir_profundidade(self, dificuldade):
         if dificuldade == FACIL:
@@ -218,6 +226,7 @@ def iniciarJogo(tela, dificuldade):
 
         vencedor = jogo.vencedor()
         
+        # --- Tela final ---
         if vencedor is not None:
             acao = telaFinal(tela, vencedor)
             if acao == "SAIR":
@@ -228,11 +237,22 @@ def iniciarJogo(tela, dificuldade):
                 rodando = False
             elif acao == "RESTART":
                 jogo.reset()
-                
-        # Lógica do Turno da IA (MARROM_PECA)
-        if jogo.tabuleiro.turno == MARROM_PECA and vencedor is None:
-            jogo.lance_ia() 
 
+        # --- Lógica da IA (com delay) ---
+        if jogo.tabuleiro.turno == MARROM_PECA and vencedor is None:
+
+            # IA ainda não começou a esperar → inicia o timer
+            if not jogo.aguardando_ia:
+                jogo.aguardando_ia = True
+                jogo.tempo_inicio_ia = time.time()
+
+            # IA já está esperando → verifica se terminou o delay
+            else:
+                if time.time() - jogo.tempo_inicio_ia >= jogo.delay_ia:
+                    jogo.lance_ia()
+                    jogo.aguardando_ia = False
+
+        # --- Eventos ---
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 rodando = False
@@ -242,7 +262,7 @@ def iniciarJogo(tela, dificuldade):
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
                 
-                # 1. Lógica de Desistir
+                # Botão desistir
                 if jogo.rectDesistir.collidepoint(pos):
                     acao = telaFinal(tela, MARROM_PECA)
                     if acao == "SAIR":
@@ -254,14 +274,14 @@ def iniciarJogo(tela, dificuldade):
                     elif acao == "RESTART":
                         jogo.reset()
                 
-                # 2. Lógica de Clique (Apenas para pessoa - DOURADO)
-                
-                elif jogo.tabuleiro.turno == DOURADO: 
+                # Jogador (DOURADO)
+                elif jogo.tabuleiro.turno == DOURADO:
                     linha, coluna = obterLinhaColunaMouse(pos)
                     jogo.selecionar(linha, coluna)
             
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_w: 
-                   jogo.tabuleiro.pecasMarronsRestantes = 0
+                    jogo.tabuleiro.pecasMarronsRestantes = 0
 
         jogo.update()
+        

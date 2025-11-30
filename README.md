@@ -32,6 +32,8 @@ A inteligência do agente é baseada no algoritmo **Minimax com Poda Alfa-Beta**
 
 ## 🚀 Como Executar o Projeto
 
+# Ter instalado o python 3.12 (compatível)
+
 ### Clonar e Configurar
 
 ```bash
