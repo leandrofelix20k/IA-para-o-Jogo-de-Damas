@@ -30,9 +30,12 @@ A inteligência do agente é baseada no algoritmo **Minimax com Poda Alfa-Beta**
     * **Pygame:** Utilizado para a criação da interface do tabuleiro.
     * **NumPy:** Utilizado para possíveis cálculos ou manipulações de dados no backend da IA.
 
-## 🚀 Como Executar o Projeto
+## ✅ Requisitos
 
-# Ter instalado o python 3.12 (compatível)
+- **Python 3.12.x instalado**  
+  *(pygame atualmente não funciona em Python 3.13+)*
+
+## 🚀 Como Executar o Projeto
 
 ### Clonar e Configurar
 
