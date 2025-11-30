@@ -73,11 +73,11 @@ def minimax(posicao, profundidade, alpha, beta, maximizando_jogador, cor_ia):
         return min_avaliacao, melhor_lance
 
 
-# --- Geração de Lances Válidos (CORRIGIDO) ---
+# --- Geração de Lances Válidos ---
 def gerar_lances_validos(tabuleiro):
     lances_tabuleiros = []
     
-    # --- AGORA CHAMA O MÉTODO DA CLASSE TABULEIRO ---
+    # --- MÉTODO DA CLASSE TABULEIRO ---
     tabuleiro._calcularMovimentosObrigatorios() 
     
     movimentos_globais = tabuleiro.movimentosValidosGlobais
@@ -90,8 +90,6 @@ def gerar_lances_validos(tabuleiro):
             tabuleiro_simulado = deepcopy(tabuleiro)
             
             # 2. Encontra a peça na cópia (a referência mudou)
-            # Nota: É preciso garantir que peca_origem seja tratada corretamente
-            # ao procurarmos na cópia do tabuleiro.
             peca_simulada = tabuleiro_simulado.obterPeca(peca_origem.linha, peca_origem.coluna)
             
             # 3. Move a peça na simulação
@@ -106,7 +104,7 @@ def gerar_lances_validos(tabuleiro):
             
             # 5. Muda o turno na simulação e calcula os movimentos do próximo jogador
             tabuleiro_simulado.turno = MARROM_PECA if tabuleiro_simulado.turno == DOURADO else DOURADO
-            tabuleiro_simulado._calcularMovimentosObrigatorios() # NOVO CÁLCULO PARA O PRÓXIMO TURNO
+            tabuleiro_simulado._calcularMovimentosObrigatorios() 
             
             # 6. Adiciona o tabuleiro resultante à lista
             lances_tabuleiros.append(tabuleiro_simulado)
